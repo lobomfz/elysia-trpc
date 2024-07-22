@@ -18,4 +18,11 @@ export interface TRPCOptions
 	 * @default '/trpc'
 	 */
 	endpoint?: string;
+	openApi?: {
+		/**
+		 * OpenAPI path -> procedure path
+		 */
+		mappings: Record<string, string>;
+		trpcEndpoint: string;
+	};
 }

@@ -6,7 +6,6 @@ import {
 	callTRPCProcedure,
 	getErrorShape,
 } from "@trpc/server";
-import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { type Unsubscribable, isObservable } from "@trpc/server/observable";
 
 import type { TSchema } from "@sinclair/typebox";
@@ -21,6 +20,7 @@ import {
 import type { ServerWebSocket } from "bun";
 import type { TRPCOptions } from "./types";
 import { getTRPCErrorFromUnknown } from "./utils";
+import { fetchRequestHandler } from "./handler";
 
 export function compile<T extends TSchema>(schema: T) {
 	const check = getSchemaValidator(schema, {});
@@ -63,26 +63,58 @@ export const trpc =
 	) =>
 	(eri: Elysia) => {
 		const app = eri
+			// filter only trpc requests
 			.onParse({ as: "global" }, ({ request: { url } }) => {
-				if (getPath(url).startsWith(endpoint)) return true;
+				const path = getPath(url);
+
+				if (!path.startsWith(endpoint)) return true;
 			})
-			.get(`${endpoint}/*`, ({ query, request }) => {
-				return fetchRequestHandler({
-					...options,
-					req: request,
-					router,
-					endpoint,
-				});
+			// re-route get and post requests to fetchRequestHandler
+			.get(`${endpoint}/*`, ({ request }) => {
+				const path = getPath(request.url).split(endpoint)[1];
+
+				// if its a mapped path (openAPI), replace it with its trpc equivalent
+				const mappedPath = options.openApi?.mappings[path];
+
+				const url = mappedPath
+					? request.url
+							.replace(path, `/${mappedPath}`)
+							.replace(endpoint, options.openApi!.trpcEndpoint)
+					: undefined;
+
+				return fetchRequestHandler(
+					{
+						...options,
+						req: request,
+						router,
+						endpoint,
+					},
+					url,
+				);
 			})
-			.post(`${endpoint}/*`, ({ query, request }) => {
-				return fetchRequestHandler({
-					...options,
-					req: request,
-					router,
-					endpoint,
-				});
+			.post(`${endpoint}/*`, ({ request }) => {
+				const path = getPath(request.url).split(endpoint)[1];
+
+				const mappedPath = options.openApi?.mappings[path];
+
+				const url = mappedPath
+					? request.url
+							.replace(path, `/${mappedPath}`)
+							.replace(endpoint, options.openApi!.trpcEndpoint)
+					: undefined;
+
+				return fetchRequestHandler(
+					{
+						...options,
+						req: request,
+						router,
+						endpoint,
+					},
+					url,
+				);
 			});
 
+		// subscriptions section
 		if (app.ws) {
 			function respond(ws: tRPCSocket, untransformedJSON: TRPCResponseMessage) {
 				ws.send(
