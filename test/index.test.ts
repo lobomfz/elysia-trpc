@@ -37,8 +37,8 @@ const router = r.router({
 				t.Object({
 					username: t.String(),
 					password: t.String(),
-				}),
-			),
+				})
+			)
 		)
 		.mutation(({ input }) => input),
 	505: r.procedure.query(() => {
@@ -73,7 +73,7 @@ describe("TRPC Mutations", () => {
 		appMutation = new Elysia().use(trpc(router));
 		appMutationMerged = new Elysia().use(trpc(mergedRouter));
 		appMutationCustomEndpoint = new Elysia().use(
-			trpc(router, { endpoint: "/v2/trpc" }),
+			trpc(router, { endpoint: "/v2/trpc" })
 		);
 	});
 
@@ -86,7 +86,7 @@ describe("TRPC Mutations", () => {
 						"content-type": "application/json",
 					},
 					body: JSON.stringify({ "0": firstRecord }),
-				}),
+				})
 			)
 			.then((r) => r.json());
 
@@ -105,7 +105,7 @@ describe("TRPC Mutations", () => {
 						"0": firstRecord,
 						"1": secondRecord,
 					}),
-				}),
+				})
 			)
 			.then((r) => r.json());
 
@@ -124,7 +124,7 @@ describe("TRPC Mutations", () => {
 						"content-type": "application/json",
 					},
 					body: JSON.stringify({ "0": firstRecord }),
-				}),
+				})
 			)
 			.then((r) => r.json())) as any[];
 
@@ -140,7 +140,7 @@ describe("TRPC Mutations", () => {
 						"content-type": "application/json",
 					},
 					body: JSON.stringify({ "0": firstRecord }),
-				}),
+				})
 			)
 			.then((r) => r.json())) as any[];
 
@@ -166,9 +166,11 @@ describe("TRPC Queries", () => {
 	beforeEach(() => {
 		appQuery = new Elysia().use(trpc(router, { createContext }));
 		appQueryCustomEndpoint = new Elysia().use(
-			trpc(router, { createContext, endpoint: "/v2/trpc" }),
+			trpc(router, { createContext, endpoint: "/v2/trpc" })
 		);
-		appQueryMerged = new Elysia().use(trpc(mergedRouter, { createContext }));
+		appQueryMerged = new Elysia().use(
+			trpc(mergedRouter, { createContext })
+		);
 	});
 
 	it("handle single query", async () => {
@@ -257,7 +259,7 @@ describe("TRPC Subscription", () => {
 			.use(
 				trpc(onlineRouter, {
 					createContext,
-				}),
+				})
 			)
 			.listen(TESTING_PORT);
 
@@ -304,7 +306,7 @@ describe("TRPC Subscription", () => {
 					body: JSON.stringify({
 						"0": false,
 					}),
-				}),
+				})
 			)
 			.then(async (res) => {
 				if (!res.ok) {
@@ -407,7 +409,7 @@ describe("TRPC Errors", () => {
 						"content-type": "application/json",
 					},
 					body: JSON.stringify({ "0": "test" }),
-				}),
+				})
 			)
 			.then((r) => r.json())) as any[];
 
@@ -432,7 +434,7 @@ describe("TRPC Errors", () => {
 						"content-type": "application/json",
 					},
 					body: JSON.stringify({ "0": "test" }),
-				}),
+				})
 			)
 			.then((r) => r.json());
 

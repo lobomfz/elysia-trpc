@@ -1,59 +1,69 @@
 # @elysiajs/trpc
 
-A plugin for [elysia](https://github.com/elysiajs/elysia) that adds support for using tRPC.
+A plugin for [elysia](https://github.com/elysiajs/elysia) that adds support for using tRPC, integrated with [trpc-docgen](https://github.com/lobomfz/trpc-docgen).
+
+## Notes:
+- The OpenAPI router removes tRPC's weird body input, so it accepts exactly what the procedure schema expects. 
+- This requires a patched version of tRPC, see [this PR](https://github.com/trpc/trpc/pull/5909).
+
 
 ## Installation
 
 ```bash
-bun add @elysiajs/trpc
+bun add @lobomfz/elysia-trpc
 ```
 
 ## Example
 
 ```typescript
-import { Elysia, t } from 'elysia'
-import { trpc, compile as c } from '@elysiajs/trpc'
+import { initTRPC } from "@trpc/server";
+import { generateTrpcDocs, type OpenApiMeta } from "@lobomfz/trpc-docgen";
+import { Type } from "@sinclair/typebox";
+import Elysia from "elysia";
+import { trpc } from "../src";
 
-import { initTRPC } from '@trpc/server'
+// this meta optional, but highly recommended
+const t = initTRPC.meta<OpenApiMeta>().create();
 
-const r = initTRPC.create()
+const router = t.router;
 
-const router = r.router({
-	greet: r.procedure.input(c(t.String())).query(({ input }) => input)
-})
+const appRouter = router({
+	createDate: t.procedure
+		.input(
+			Type.Object({
+				date: Type.String(),
+			}),
+		)
+		.mutation(({ input }) => ({
+			date: input.date,
+		})),
+});
 
-export type Router = typeof router
+```
+## You can integrate with [trpc-docgen](https://github.com/lobomfz/trpc-docgen) to serve your restful OpenAPI router
 
-const app = new Elysia().use(trpc(router)).listen(8080)
+```ts
+const { mappings } = await generateTrpcDocs(appRouter, {
+	baseUrl: "http://localhost:3000",
+	title: "My API",
+	version: "1.0.0",
+});
+
+new Elysia()
+	.use(
+		trpc(appRouter, {
+			endpoint: "/trpc",
+		}),
+	)
+	.use(
+		trpc(appRouter, {
+			endpoint: "/openapi",
+			openApi: {
+				// in this example, createDate will be mapped to a POST /trpc/date
+				mappings,
+				trpcEndpoint: "/trpc",
+			},
+		}),
+	).listen(3000);
 ```
 
-## API
-
-This plugin extends the new method `trpc` to `Elysia` class.
-
-### trpc
-
-Register tRPC router.
-
-```typescript
-type tRPC = (router: Router<any>, options?: TRPCOptions) => this
-
-export interface TRPCOptions
-	extends Omit<
-		FetchHandlerRequestOptions<any>,
-		'req' | 'router' | 'endpoint'
-	> {
-	/**
-	 * tRPC endpoint
-	 *
-	 * @default '/trpc'
-	 */
-	endpoint?: string
-}
-```
-
-## Note
-
-WebSocket API is in an experimental state and unstable.
-
-Is meant for experimental for better stabilization.

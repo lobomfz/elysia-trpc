@@ -9,14 +9,19 @@ const trimSlashes = (path: string): string => {
 	return path;
 };
 
+// borrowed from @trpc/server, needs some refactoring
 export async function fetchRequestHandler<TRouter extends AnyTRPCRouter>(
 	opts: FetchHandlerRequestOptions<TRouter>,
-	customUrl?: string,
+	customUrl?: string
 ): Promise<Response> {
 	const resHeaders = new Headers();
 
 	const createContext: any = (innerOpts: any) => {
-		return opts.createContext?.({ req: opts.req, resHeaders, ...innerOpts });
+		return opts.createContext?.({
+			req: opts.req,
+			resHeaders,
+			...innerOpts,
+		});
 	};
 
 	const url = toURL(customUrl ?? opts.req.url);

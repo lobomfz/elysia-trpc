@@ -11,7 +11,10 @@ export interface TRPCClientIncomingRequest {
 }
 
 export interface TRPCOptions
-	extends Omit<FetchHandlerRequestOptions<any>, "req" | "router" | "endpoint"> {
+	extends Omit<
+		FetchHandlerRequestOptions<any>,
+		"req" | "router" | "endpoint"
+	> {
 	/**
 	 * tRPC endpoint
 	 *

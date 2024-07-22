@@ -1,51 +1,8 @@
-import {
-	type AnyTRPCRouter,
-	TRPCError,
-	type TRPCProcedureType,
-} from "@trpc/server";
+import { type AnyTRPCRouter, TRPCError } from "@trpc/server";
 import type { TRPCResponse, TRPCResponseMessage } from "@trpc/server/rpc";
 
-function assertIsObject(obj: unknown): asserts obj is Record<string, unknown> {
-	if (typeof obj !== "object" || Array.isArray(obj) || !obj) {
-		throw new Error("Not an object");
-	}
-}
-
-function assertIsProcedureType(obj: unknown): asserts obj is TRPCProcedureType {
-	if (obj !== "query" && obj !== "subscription" && obj !== "mutation") {
-		throw new Error("Invalid procedure type");
-	}
-}
-
-function assertIsRequestId(
-	obj: unknown,
-): asserts obj is number | string | null {
-	if (
-		obj !== null &&
-		typeof obj === "number" &&
-		isNaN(obj) &&
-		typeof obj !== "string"
-	) {
-		throw new Error("Invalid request id");
-	}
-}
-
-function assertIsString(obj: unknown): asserts obj is string {
-	if (typeof obj !== "string") {
-		throw new Error("Invalid string");
-	}
-}
-
-function assertIsJSONRPC2OrUndefined(
-	obj: unknown,
-): asserts obj is "2.0" | undefined {
-	if (typeof obj !== "undefined" && obj !== "2.0") {
-		throw new Error("Must be JSONRPC 2.0");
-	}
-}
-
 export function transformTRPCResponseItem<
-	TResponseItem extends TRPCResponse | TRPCResponseMessage,
+	TResponseItem extends TRPCResponse | TRPCResponseMessage
 >(router: AnyTRPCRouter, item: TResponseItem): TResponseItem {
 	if ("error" in item) {
 		return {
@@ -60,7 +17,7 @@ export function transformTRPCResponseItem<
 			result: {
 				...item.result,
 				data: router._def._config.transformer.output.serialize(
-					item.result.data,
+					item.result.data
 				),
 			},
 		};
@@ -74,7 +31,7 @@ export function transformTRPCResponse<
 		| TRPCResponse
 		| TRPCResponse[]
 		| TRPCResponseMessage
-		| TRPCResponseMessage[],
+		| TRPCResponseMessage[]
 >(router: AnyTRPCRouter, itemOrItems: TResponse) {
 	return Array.isArray(itemOrItems)
 		? itemOrItems.map((item) => transformTRPCResponseItem(router, item))
@@ -83,7 +40,7 @@ export function transformTRPCResponse<
 
 export function getMessageFromUnknownError(
 	err: unknown,
-	fallback: string,
+	fallback: string
 ): string {
 	if (typeof err === "string") {
 		return err;
@@ -92,6 +49,7 @@ export function getMessageFromUnknownError(
 	if (err instanceof Error && typeof err.message === "string") {
 		return err.message;
 	}
+
 	return fallback;
 }
 

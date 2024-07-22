@@ -7,7 +7,6 @@ import {
 	getErrorShape,
 } from "@trpc/server";
 import { type Unsubscribable, isObservable } from "@trpc/server/observable";
-
 import type { TSchema } from "@sinclair/typebox";
 import {
 	type JSONRPC2,
@@ -18,9 +17,9 @@ import {
 	transformTRPCResponse,
 } from "@trpc/server/unstable-core-do-not-import";
 import type { ServerWebSocket } from "bun";
+import { fetchRequestHandler } from "./handler";
 import type { TRPCOptions } from "./types";
 import { getTRPCErrorFromUnknown } from "./utils";
-import { fetchRequestHandler } from "./handler";
 
 export function compile<T extends TSchema>(schema: T) {
 	const check = getSchemaValidator(schema, {});
@@ -54,12 +53,12 @@ export const trpc =
 			ctx: inferRouterContext<TRouter> | undefined;
 			request: Request;
 			subscriptions: Map<number | string, Unsubscribable>;
-		}>,
+		}>
 	>(
 		router: AnyTRPCRouter,
 		{ endpoint = "/trpc", ...options }: TRPCOptions = {
 			endpoint: "/trpc",
-		},
+		}
 	) =>
 	(eri: Elysia) => {
 		const app = eri
@@ -89,7 +88,7 @@ export const trpc =
 						router,
 						endpoint,
 					},
-					url,
+					url
 				);
 			})
 			.post(`${endpoint}/*`, async ({ request }) => {
@@ -129,7 +128,7 @@ export const trpc =
 							router,
 							endpoint,
 						},
-						url,
+						url
 					);
 				}
 
@@ -140,28 +139,38 @@ export const trpc =
 						router,
 						endpoint,
 					},
-					url,
+					url
 				);
 			});
 
 		// subscriptions section
 		if (app.ws) {
-			function respond(ws: tRPCSocket, untransformedJSON: TRPCResponseMessage) {
+			function respond(
+				ws: tRPCSocket,
+				untransformedJSON: TRPCResponseMessage
+			) {
 				ws.send(
 					JSON.stringify(
-						transformTRPCResponse(router._def._config, untransformedJSON),
-					),
+						transformTRPCResponse(
+							router._def._config,
+							untransformedJSON
+						)
+					)
 				);
 			}
 
 			app.ws<any, any, any>(endpoint, {
 				async open(ws: any) {
-					ws.data.subscriptions = new Map<number | string, Unsubscribable>();
+					ws.data.subscriptions = new Map<
+						number | string,
+						Unsubscribable
+					>();
 
 					const { createContext } = options;
 					const { request: req } = ws.data;
 
-					const ctx: inferRouterContext<TRouter> | undefined = undefined;
+					const ctx: inferRouterContext<TRouter> | undefined =
+						undefined;
 					const ctxPromise = createContext?.({
 						req,
 					} as any);
@@ -205,7 +214,10 @@ export const trpc =
 
 					function stopSubscription(
 						subscription: Unsubscribable,
-						{ id, jsonrpc }: JSONRPC2.BaseEnvelope & { id: JSONRPC2.RequestId },
+						{
+							id,
+							jsonrpc,
+						}: JSONRPC2.BaseEnvelope & { id: JSONRPC2.RequestId }
 					) {
 						subscription.unsubscribe();
 
@@ -218,7 +230,9 @@ export const trpc =
 						});
 					}
 
-					async function handleRequest(msg: TRPCClientOutgoingMessage) {
+					async function handleRequest(
+						msg: TRPCClientOutgoingMessage
+					) {
 						const { id, jsonrpc } = msg;
 						if (id === null) {
 							throw new TRPCError({
