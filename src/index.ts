@@ -1,245 +1,231 @@
-import { Elysia, getSchemaValidator } from 'elysia'
+import { type Elysia, getSchemaValidator } from "elysia";
 
 import {
+	type AnyTRPCRouter,
+	TRPCError,
 	callTRPCProcedure,
 	getErrorShape,
-	TRPCError,
-	type AnyTRPCRouter
-} from '@trpc/server'
-import { fetchRequestHandler } from '@trpc/server/adapters/fetch'
-import { isObservable, Unsubscribable } from '@trpc/server/observable'
+} from "@trpc/server";
+import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
+import { type Unsubscribable, isObservable } from "@trpc/server/observable";
 
-import type { TSchema } from '@sinclair/typebox'
+import type { TSchema } from "@sinclair/typebox";
 import {
-	inferRouterContext,
-	JSONRPC2,
+	type JSONRPC2,
+	type TRPCClientOutgoingMessage,
+	type TRPCResponseMessage,
+	type inferRouterContext,
 	parseTRPCMessage,
 	transformTRPCResponse,
-	TRPCClientOutgoingMessage,
-	TRPCResponseMessage
-} from '@trpc/server/unstable-core-do-not-import'
-import { ServerWebSocket } from 'bun'
-import type { TRPCOptions } from './types'
-import { getTRPCErrorFromUnknown } from './utils'
+} from "@trpc/server/unstable-core-do-not-import";
+import type { ServerWebSocket } from "bun";
+import type { TRPCOptions } from "./types";
+import { getTRPCErrorFromUnknown } from "./utils";
 
 export function compile<T extends TSchema>(schema: T) {
-	const check = getSchemaValidator(schema, {})
-	if (!check) throw new Error('Invalid schema')
+	const check = getSchemaValidator(schema, {});
+	if (!check) throw new Error("Invalid schema");
 
 	return (value: unknown) => {
-		if (check.Check(value)) return value
+		if (check.Check(value)) return value;
 
-		const { path, message } = [...check.Errors(value)][0]
+		const { path, message } = [...check.Errors(value)][0];
 
 		throw new TRPCError({
 			message: `${message} for ${path}`,
-			code: 'BAD_REQUEST'
-		})
-	}
+			code: "BAD_REQUEST",
+		});
+	};
 }
 
 const getPath = (url: string) => {
-	const start = url.indexOf('/', 9)
-	const end = url.indexOf('?', start)
+	const start = url.indexOf("/", 9);
+	const end = url.indexOf("?", start);
 
-	if (end === -1) return url.slice(start)
+	if (end === -1) return url.slice(start);
 
-	return url.slice(start, end)
-}
+	return url.slice(start, end);
+};
 
 export const trpc =
 	<
 		TRouter extends AnyTRPCRouter,
 		tRPCSocket extends ServerWebSocket<{
-			ctx: inferRouterContext<TRouter> | undefined
-			request: Request
-			subscriptions: Map<number | string, Unsubscribable>
-		}>
+			ctx: inferRouterContext<TRouter> | undefined;
+			request: Request;
+			subscriptions: Map<number | string, Unsubscribable>;
+		}>,
 	>(
 		router: AnyTRPCRouter,
-		{ endpoint = '/trpc', ...options }: TRPCOptions = {
-			endpoint: '/trpc'
-		}
+		{ endpoint = "/trpc", ...options }: TRPCOptions = {
+			endpoint: "/trpc",
+		},
 	) =>
 	(eri: Elysia) => {
-		let app = eri
-			.onParse({ as: 'global' }, async ({ request: { url } }) => {
-				if (getPath(url).startsWith(endpoint)) return true
+		const app = eri
+			.onParse({ as: "global" }, ({ request: { url } }) => {
+				if (getPath(url).startsWith(endpoint)) return true;
 			})
-			.get(`${endpoint}/*`, async ({ query, request }) => {
+			.get(`${endpoint}/*`, ({ query, request }) => {
 				return fetchRequestHandler({
 					...options,
 					req: request,
 					router,
-					endpoint
-				})
+					endpoint,
+				});
 			})
-			.post(`${endpoint}/*`, async ({ query, request }) => {
+			.post(`${endpoint}/*`, ({ query, request }) => {
 				return fetchRequestHandler({
 					...options,
 					req: request,
 					router,
-					endpoint
-				})
-			})
+					endpoint,
+				});
+			});
 
 		if (app.ws) {
-			function respond(
-				ws: tRPCSocket,
-				untransformedJSON: TRPCResponseMessage
-			) {
+			function respond(ws: tRPCSocket, untransformedJSON: TRPCResponseMessage) {
 				ws.send(
 					JSON.stringify(
-						transformTRPCResponse(
-							router._def._config,
-							untransformedJSON
-						)
-					)
-				)
+						transformTRPCResponse(router._def._config, untransformedJSON),
+					),
+				);
 			}
 
 			app.ws<any, any, any>(endpoint, {
 				async open(ws: any) {
-					ws.data.subscriptions = new Map<
-						number | string,
-						Unsubscribable
-					>()
+					ws.data.subscriptions = new Map<number | string, Unsubscribable>();
 
-					const { createContext } = options
-					const { request: req } = ws.data
+					const { createContext } = options;
+					const { request: req } = ws.data;
 
-					let ctx: inferRouterContext<TRouter> | undefined = undefined
+					const ctx: inferRouterContext<TRouter> | undefined = undefined;
 					const ctxPromise = createContext?.({
-						req
-					} as any)
+						req,
+					} as any);
 
 					async function createContextAsync() {
 						try {
-							ws.data.ctx = await ctxPromise
+							ws.data.ctx = await ctxPromise;
 						} catch (cause) {
-							const error = getTRPCErrorFromUnknown(cause)
+							const error = getTRPCErrorFromUnknown(cause);
 							options.onError?.({
 								error,
 								path: undefined,
-								type: 'unknown',
+								type: "unknown",
 								ctx,
 								req,
-								input: undefined
-							})
+								input: undefined,
+							});
 							respond(ws, {
 								id: null,
 								error: getErrorShape({
 									config: router._def._config,
 									error,
-									type: 'unknown',
+									type: "unknown",
 									path: undefined,
 									input: undefined,
-									ctx
-								})
-							})
+									ctx,
+								}),
+							});
 
 							// close in next tick
-							;(global.setImmediate ?? global.setTimeout)(() => {
-								ws.close()
-							})
+							(global.setImmediate ?? global.setTimeout)(() => {
+								ws.close();
+							});
 						}
 					}
-					await createContextAsync()
+					await createContextAsync();
 				},
 				async message(ws: tRPCSocket, message: any) {
-					const { transformer } = router._def._config
-					const { request: req, ctx, subscriptions } = ws.data
+					const { transformer } = router._def._config;
+					const { request: req, ctx, subscriptions } = ws.data;
 
 					function stopSubscription(
 						subscription: Unsubscribable,
-						{
-							id,
-							jsonrpc
-						}: JSONRPC2.BaseEnvelope & { id: JSONRPC2.RequestId }
+						{ id, jsonrpc }: JSONRPC2.BaseEnvelope & { id: JSONRPC2.RequestId },
 					) {
-						subscription.unsubscribe()
+						subscription.unsubscribe();
 
 						respond(ws, {
 							id,
 							jsonrpc,
 							result: {
-								type: 'stopped'
-							}
-						})
+								type: "stopped",
+							},
+						});
 					}
 
-					async function handleRequest(
-						msg: TRPCClientOutgoingMessage
-					) {
-						const { id, jsonrpc } = msg
+					async function handleRequest(msg: TRPCClientOutgoingMessage) {
+						const { id, jsonrpc } = msg;
 						if (id === null) {
 							throw new TRPCError({
-								code: 'BAD_REQUEST',
-								message: '`id` is required'
-							})
+								code: "BAD_REQUEST",
+								message: "`id` is required",
+							});
 						}
 
-						if (msg.method === 'subscription.stop') {
-							const sub = subscriptions.get(id)
+						if (msg.method === "subscription.stop") {
+							const sub = subscriptions.get(id);
 
 							if (sub) {
-								stopSubscription(sub, { id, jsonrpc })
+								stopSubscription(sub, { id, jsonrpc });
 							}
-							subscriptions.delete(id)
-							return
+							subscriptions.delete(id);
+							return;
 						}
 
-						const { path, input } = msg.params
-						const type = msg.method
+						const { path, input } = msg.params;
+						const type = msg.method;
 						try {
 							const result = await callTRPCProcedure({
 								procedures: router._def.procedures,
 								path,
 								getRawInput: async () => input,
 								ctx,
-								type
-							})
+								type,
+							});
 
-							if (type === 'subscription') {
+							if (type === "subscription") {
 								if (!isObservable(result)) {
 									throw new TRPCError({
 										message: `Subscription ${path} did not return an observable`,
-										code: 'INTERNAL_SERVER_ERROR'
-									})
+										code: "INTERNAL_SERVER_ERROR",
+									});
 								}
 							} else {
 								return void respond(ws, {
 									id,
 									jsonrpc,
 									result: {
-										type: 'data',
-										data: result
-									}
-								})
+										type: "data",
+										data: result,
+									},
+								});
 							}
 
-							const observable = result
+							const observable = result;
 							const sub = observable.subscribe({
 								next(data) {
 									respond(ws, {
 										id,
 										jsonrpc,
 										result: {
-											type: 'data',
-											data
-										}
-									})
+											type: "data",
+											data,
+										},
+									});
 								},
 								error(err) {
-									const error = getTRPCErrorFromUnknown(err)
+									const error = getTRPCErrorFromUnknown(err);
 									options.onError?.({
 										error,
 										path,
 										type,
 										ctx,
 										req,
-										input
-									})
+										input,
+									});
 									respond(ws, {
 										id,
 										jsonrpc,
@@ -249,54 +235,54 @@ export const trpc =
 											type,
 											path,
 											input,
-											ctx
-										})
-									})
+											ctx,
+										}),
+									});
 								},
 								complete() {
 									respond(ws, {
 										id,
 										jsonrpc,
 										result: {
-											type: 'stopped'
-										}
-									})
-								}
-							})
+											type: "stopped",
+										},
+									});
+								},
+							});
 
 							if ((ws as any).raw.readyState !== WebSocket.OPEN) {
 								// if the client got disconnected whilst initializing the subscription
 								// no need to send stopped message if the client is disconnected
-								sub.unsubscribe()
-								return
+								sub.unsubscribe();
+								return;
 							}
 
 							if (subscriptions.has(id)) {
-								stopSubscription(sub, { id, jsonrpc })
+								stopSubscription(sub, { id, jsonrpc });
 								throw new TRPCError({
 									message: `Duplicate id ${id}`,
-									code: 'BAD_REQUEST'
-								})
+									code: "BAD_REQUEST",
+								});
 							}
-							subscriptions.set(id, sub)
+							subscriptions.set(id, sub);
 
 							respond(ws, {
 								id,
 								jsonrpc,
 								result: {
-									type: 'started'
-								}
-							})
+									type: "started",
+								},
+							});
 						} catch (cause) {
-							const error = getTRPCErrorFromUnknown(cause)
+							const error = getTRPCErrorFromUnknown(cause);
 							options.onError?.({
 								error,
 								path,
 								type,
 								ctx,
 								req,
-								input
-							})
+								input,
+							});
 							respond(ws, {
 								id,
 								jsonrpc,
@@ -306,53 +292,53 @@ export const trpc =
 									type,
 									path,
 									input,
-									ctx
-								})
-							})
+									ctx,
+								}),
+							});
 						}
 					}
 
 					try {
 						const msgJSON: unknown =
-							typeof message === 'object'
+							typeof message === "object"
 								? message
-								: JSON.parse(message.toString())
+								: JSON.parse(message.toString());
 						const msgs: unknown[] = Array.isArray(msgJSON)
 							? msgJSON
-							: [msgJSON]
+							: [msgJSON];
 						const promises = msgs
 							.map((raw) => parseTRPCMessage(raw, transformer))
-							.map(handleRequest)
-						await Promise.all(promises)
+							.map(handleRequest);
+						await Promise.all(promises);
 					} catch (cause) {
 						const error = new TRPCError({
-							code: 'PARSE_ERROR',
-							cause
-						})
+							code: "PARSE_ERROR",
+							cause,
+						});
 
 						return void respond(ws, {
 							id: null,
 							error: getErrorShape({
 								config: router._def._config,
 								error,
-								type: 'unknown',
+								type: "unknown",
 								path: undefined,
 								input: undefined,
-								ctx: undefined
-							})
-						})
+								ctx: undefined,
+							}),
+						});
 					}
 				},
 				close(ws: tRPCSocket) {
 					for (const sub of ws.data.subscriptions.values()) {
-						sub.unsubscribe()
+						sub.unsubscribe();
 					}
-					ws.data.subscriptions.clear()
-				}
-			})
+					ws.data.subscriptions.clear();
+				},
+			});
 		}
 
-		return app
-	}
+		return app;
+	};
 
-export type { TRPCClientIncomingRequest, TRPCOptions } from './types'
+export type { TRPCClientIncomingRequest, TRPCOptions } from "./types";

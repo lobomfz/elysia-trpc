@@ -1,51 +1,53 @@
-import { Elysia, t } from 'elysia'
-import { compile as c, trpc } from '../src'
+import { Elysia, t } from "elysia";
+import { compile as c, trpc } from "../src";
 
-import { initTRPC } from '@trpc/server'
-import type { FetchCreateContextFnOptions } from '@trpc/server/adapters/fetch'
-import { observable } from '@trpc/server/observable'
+import { initTRPC } from "@trpc/server";
+import type { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
+import { observable } from "@trpc/server/observable";
 
-import { EventEmitter } from 'events'
+import { EventEmitter } from "events";
 
-export const createContext = async (opts: FetchCreateContextFnOptions) => {
+export const createContext = (opts: FetchCreateContextFnOptions) => {
 	return {
-		name: 'elysia'
-	}
-}
+		name: "elysia",
+	};
+};
 
-const p = initTRPC.context<Awaited<ReturnType<typeof createContext>>>().create()
-const ee = new EventEmitter()
+const p = initTRPC
+	.context<Awaited<ReturnType<typeof createContext>>>()
+	.create();
+const ee = new EventEmitter();
 
 const router = p.router({
 	mirror: p.procedure.input(c(t.String())).query(({ input }) => {
-		ee.emit('listen', input)
+		ee.emit("listen", input);
 
-		return input
+		return input;
 	}),
 	listen: p.procedure.subscription(() =>
 		observable<string>((emit) => {
 			const onListen = (input: string) => {
-				emit.next(input)
-			}
+				emit.next(input);
+			};
 
-			ee.on('listen', onListen)
+			ee.on("listen", onListen);
 
 			return () => {
-				ee.off('listen', onListen)
-			}
-		})
-	)
-})
+				ee.off("listen", onListen);
+			};
+		}),
+	),
+});
 
-export type Router = typeof router
+export type Router = typeof router;
 
 new Elysia()
-	.get('/', () => 'tRPC')
+	.get("/", () => "tRPC")
 	.use(
 		trpc(router, {
-			createContext
-		})
+			createContext,
+		}),
 	)
 	.listen(8080, ({ hostname, port }) => {
-		console.log(`🦊 running at http://${hostname}:${port}`)
-	})
+		console.log(`🦊 running at http://${hostname}:${port}`);
+	});

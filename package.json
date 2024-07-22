@@ -22,10 +22,7 @@
 	"types": "./src/index.ts",
 	"bugs": "https://github.com/elysiajs/elysia-trpc/issues",
 	"homepage": "https://github.com/elysiajs/elysia-trpc",
-	"keywords": [
-		"elysia",
-		"trpc"
-	],
+	"keywords": ["elysia", "trpc"],
 	"license": "MIT",
 	"scripts": {
 		"dev": "bun run --hot example/index.ts",
