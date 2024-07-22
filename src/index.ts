@@ -92,7 +92,7 @@ export const trpc =
 					url,
 				);
 			})
-			.post(`${endpoint}/*`, ({ request }) => {
+			.post(`${endpoint}/*`, async ({ request }) => {
 				const path = getPath(request.url).split(endpoint)[1];
 
 				const mappedPath = options.openApi?.mappings[path];
@@ -102,6 +102,36 @@ export const trpc =
 							.replace(path, `/${mappedPath}`)
 							.replace(endpoint, options.openApi!.trpcEndpoint)
 					: undefined;
+
+				// add { json: } to body
+				if (url) {
+					const parsedBody = await request.json();
+
+					const newBody = {
+						json: parsedBody,
+					};
+
+					const newRequest = new Request(request.url, {
+						method: request.method,
+						headers: request.headers,
+						body: new ReadableStream({
+							start(controller) {
+								controller.enqueue(JSON.stringify(newBody));
+								controller.close();
+							},
+						}),
+					});
+
+					return fetchRequestHandler(
+						{
+							...options,
+							req: newRequest,
+							router,
+							endpoint,
+						},
+						url,
+					);
+				}
 
 				return fetchRequestHandler(
 					{
