@@ -1,4 +1,4 @@
-# @elysiajs/trpc
+# @lobomfz/elysia-trpc
 
 A plugin for [elysia](https://github.com/elysiajs/elysia) that adds support for using tRPC, integrated with [trpc-docgen](https://github.com/lobomfz/trpc-docgen).
 
