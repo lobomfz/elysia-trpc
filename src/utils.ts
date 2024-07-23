@@ -2,7 +2,7 @@ import { type AnyTRPCRouter, TRPCError } from "@trpc/server";
 import type { TRPCResponse, TRPCResponseMessage } from "@trpc/server/rpc";
 
 export function transformTRPCResponseItem<
-	TResponseItem extends TRPCResponse | TRPCResponseMessage
+	TResponseItem extends TRPCResponse | TRPCResponseMessage,
 >(router: AnyTRPCRouter, item: TResponseItem): TResponseItem {
 	if ("error" in item) {
 		return {
@@ -17,7 +17,7 @@ export function transformTRPCResponseItem<
 			result: {
 				...item.result,
 				data: router._def._config.transformer.output.serialize(
-					item.result.data
+					item.result.data,
 				),
 			},
 		};
@@ -31,7 +31,7 @@ export function transformTRPCResponse<
 		| TRPCResponse
 		| TRPCResponse[]
 		| TRPCResponseMessage
-		| TRPCResponseMessage[]
+		| TRPCResponseMessage[],
 >(router: AnyTRPCRouter, itemOrItems: TResponse) {
 	return Array.isArray(itemOrItems)
 		? itemOrItems.map((item) => transformTRPCResponseItem(router, item))
@@ -40,7 +40,7 @@ export function transformTRPCResponse<
 
 export function getMessageFromUnknownError(
 	err: unknown,
-	fallback: string
+	fallback: string,
 ): string {
 	if (typeof err === "string") {
 		return err;

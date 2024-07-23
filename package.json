@@ -1,6 +1,6 @@
 {
 	"name": "@lobomfz/elysia-trpc",
-	"version": "1.1.1",
+	"version": "1.1.2",
 	"description": "A plugin for Elysia that add support for using tRPC and OpenAPI",
 	"contributors": [
 		{
@@ -39,8 +39,7 @@
 		"dev": "bun run --hot example/index.ts",
 		"test": "bun test && npm run test:node",
 		"test:node": "npm install --prefix ./test/node/cjs/ && npm install --prefix ./test/node/esm/ && node ./test/node/cjs/index.js && node ./test/node/esm/index.js",
-		"build": "rimraf dist && tsc --project tsconfig.esm.json && tsc --project tsconfig.cjs.json",
-		"release": "npm run prettier && npm run build && npm run test && npm publish --access public",
+		"release": "tsc && npm publish --access public",
 		"prettier": "bun x prettier . --write"
 	},
 	"devDependencies": {
@@ -49,9 +48,11 @@
 		"@types/node": "^20.1.4",
 		"@types/ws": "^8.5.4",
 		"eslint": "^8.40.0",
-		"rimraf": "4.4.1"
+		"rimraf": "4.4.1",
+		"@sinclair/typebox": "^0.32.35"
 	},
 	"peerDependencies": {
-		"@trpc/server": "^11.0.0-rc.467"
+		"@trpc/server": "^11.0.0-rc.467",
+		"elysia": "1.0.27"
 	}
 }

@@ -1,5 +1,6 @@
 import { type Elysia, getSchemaValidator } from "elysia";
 
+import type { TSchema } from "@sinclair/typebox";
 import {
 	type AnyTRPCRouter,
 	TRPCError,
@@ -7,7 +8,6 @@ import {
 	getErrorShape,
 } from "@trpc/server";
 import { type Unsubscribable, isObservable } from "@trpc/server/observable";
-import type { TSchema } from "@sinclair/typebox";
 import {
 	type JSONRPC2,
 	type TRPCClientOutgoingMessage,
@@ -53,12 +53,12 @@ export const trpc =
 			ctx: inferRouterContext<TRouter> | undefined;
 			request: Request;
 			subscriptions: Map<number | string, Unsubscribable>;
-		}>
+		}>,
 	>(
 		router: AnyTRPCRouter,
 		{ endpoint = "/trpc", ...options }: TRPCOptions = {
 			endpoint: "/trpc",
-		}
+		},
 	) =>
 	(eri: Elysia) => {
 		const app = eri
@@ -88,7 +88,7 @@ export const trpc =
 						router,
 						endpoint,
 					},
-					url
+					url,
 				);
 			})
 			.post(`${endpoint}/*`, async ({ request }) => {
@@ -106,30 +106,32 @@ export const trpc =
 				if (url) {
 					const parsedBody = await request.json();
 
-					const newBody = {
-						json: parsedBody,
-					};
+					if (parsedBody) {
+						const newBody = {
+							json: parsedBody,
+						};
 
-					const newRequest = new Request(request.url, {
-						method: request.method,
-						headers: request.headers,
-						body: new ReadableStream({
-							start(controller) {
-								controller.enqueue(JSON.stringify(newBody));
-								controller.close();
+						const newRequest = new Request(request.url, {
+							method: request.method,
+							headers: request.headers,
+							body: new ReadableStream({
+								start(controller) {
+									controller.enqueue(JSON.stringify(newBody));
+									controller.close();
+								},
+							}),
+						});
+
+						return fetchRequestHandler(
+							{
+								...options,
+								req: newRequest,
+								router,
+								endpoint,
 							},
-						}),
-					});
-
-					return fetchRequestHandler(
-						{
-							...options,
-							req: newRequest,
-							router,
-							endpoint,
-						},
-						url
-					);
+							url,
+						);
+					}
 				}
 
 				return fetchRequestHandler(
@@ -139,38 +141,28 @@ export const trpc =
 						router,
 						endpoint,
 					},
-					url
+					url,
 				);
 			});
 
 		// subscriptions section
 		if (app.ws) {
-			function respond(
-				ws: tRPCSocket,
-				untransformedJSON: TRPCResponseMessage
-			) {
+			function respond(ws: tRPCSocket, untransformedJSON: TRPCResponseMessage) {
 				ws.send(
 					JSON.stringify(
-						transformTRPCResponse(
-							router._def._config,
-							untransformedJSON
-						)
-					)
+						transformTRPCResponse(router._def._config, untransformedJSON),
+					),
 				);
 			}
 
 			app.ws<any, any, any>(endpoint, {
 				async open(ws: any) {
-					ws.data.subscriptions = new Map<
-						number | string,
-						Unsubscribable
-					>();
+					ws.data.subscriptions = new Map<number | string, Unsubscribable>();
 
 					const { createContext } = options;
 					const { request: req } = ws.data;
 
-					const ctx: inferRouterContext<TRouter> | undefined =
-						undefined;
+					const ctx: inferRouterContext<TRouter> | undefined = undefined;
 					const ctxPromise = createContext?.({
 						req,
 					} as any);
@@ -214,10 +206,7 @@ export const trpc =
 
 					function stopSubscription(
 						subscription: Unsubscribable,
-						{
-							id,
-							jsonrpc,
-						}: JSONRPC2.BaseEnvelope & { id: JSONRPC2.RequestId }
+						{ id, jsonrpc }: JSONRPC2.BaseEnvelope & { id: JSONRPC2.RequestId },
 					) {
 						subscription.unsubscribe();
 
@@ -230,9 +219,7 @@ export const trpc =
 						});
 					}
 
-					async function handleRequest(
-						msg: TRPCClientOutgoingMessage
-					) {
+					async function handleRequest(msg: TRPCClientOutgoingMessage) {
 						const { id, jsonrpc } = msg;
 						if (id === null) {
 							throw new TRPCError({

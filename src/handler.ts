@@ -12,7 +12,7 @@ const trimSlashes = (path: string): string => {
 // borrowed from @trpc/server, needs some refactoring
 export async function fetchRequestHandler<TRouter extends AnyTRPCRouter>(
 	opts: FetchHandlerRequestOptions<TRouter>,
-	customUrl?: string
+	customUrl?: string,
 ): Promise<Response> {
 	const resHeaders = new Headers();
 
