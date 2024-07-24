@@ -81,15 +81,45 @@ export const trpc =
 							.replace(endpoint, options.openApi!.trpcEndpoint)
 					: undefined;
 
-				return fetchRequestHandler(
-					{
-						...options,
-						req: request,
-						router,
-						endpoint,
-					},
-					url,
-				);
+				// add { json: } to query
+				if (url) {
+					const newUrl = new URL(url);
+
+					const obj = Object.fromEntries(newUrl.searchParams.entries());
+
+					for (const [key] of Object.entries(obj)) {
+						newUrl.searchParams.delete(key);
+					}
+
+					newUrl.searchParams.set(
+						"input",
+						JSON.stringify({
+							json: obj,
+						}),
+					);
+
+					const newRequest = new Request(newUrl.toString(), {
+						method: request.method,
+						headers: request.headers,
+					});
+
+					return fetchRequestHandler(
+						{
+							...options,
+							req: newRequest,
+							router,
+							endpoint,
+						},
+						url,
+					);
+				}
+
+				return fetchRequestHandler({
+					...options,
+					req: request,
+					router,
+					endpoint,
+				});
 			})
 			.post(`${endpoint}/*`, async ({ request }) => {
 				const path = getPath(request.url).split(endpoint)[1];
