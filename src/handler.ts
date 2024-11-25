@@ -1,6 +1,6 @@
 import type { AnyTRPCRouter } from "@trpc/server";
 import type { FetchHandlerRequestOptions } from "@trpc/server/adapters/fetch";
-import { resolveResponse, toURL } from "@trpc/server/http";
+import { resolveResponse } from "@trpc/server/http";
 
 const trimSlashes = (path: string): string => {
 	path = path.startsWith("/") ? path.slice(1) : path;
@@ -24,7 +24,7 @@ export async function fetchRequestHandler<TRouter extends AnyTRPCRouter>(
 		});
 	};
 
-	const url = toURL(customUrl ?? opts.req.url);
+	const url = new URL(customUrl ?? opts.req.url);
 
 	const pathname = trimSlashes(url.pathname);
 	const endpoint = trimSlashes(opts.endpoint);
