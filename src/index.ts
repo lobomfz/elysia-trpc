@@ -277,6 +277,7 @@ export const trpc =
 								getRawInput: async () => input,
 								ctx,
 								type,
+								signal: undefined,
 							});
 
 							if (type === "subscription") {
